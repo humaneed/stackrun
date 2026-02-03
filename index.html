@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Stack Rush – Runner MVP</title>
+<title>Stack Rush – Endless Runner</title>
 
 <style>
 html, body {
   margin:0; padding:0; overflow:hidden;
   background:#000; touch-action:none;
+  font-family:sans-serif;
 }
 #game {
   position:relative;
@@ -22,74 +23,112 @@ html, body {
   background:#00ff88;
   border-radius:10px;
 }
-.item {
+.item, .obstacle {
   position:absolute;
   width:28px; height:28px;
   border-radius:50%;
 }
-.good { background:#00ff88; }
-.bad  { background:#ff3355; }
+.item.good { background:#00ff88; }
+.item.bad  { background:#ff3355; }
+.obstacle { background:#ff0000; border-radius:6px; width:40px; height:40px;}
+#score {
+  position:absolute;
+  top:10px; left:10px;
+  color:#fff; font-size:20px;
+}
 </style>
 </head>
+
 <body>
 <div id="game"></div>
+<div id="score">Score: 0</div>
 
 <script>
-const game = document.getElementById("game");
-const W = () => window.innerWidth;
-const H = () => window.innerHeight;
+const game=document.getElementById("game");
+const W = ()=>window.innerWidth;
+const H = ()=>window.innerHeight;
 
-let stack = 3;
-let speed = 3;
-let x = W()/2;
-let y = H()/5;   // Spielerhöhe im Runner (automatisch vorwärts)
-let running = true;
+let stack=3;
+let x=W()/2;
+let y=H()/5;
+let running=true;
+let speed=2;
+let score=0;
 
 // --- Player ---
-const player = document.createElement("div");
+const player=document.createElement("div");
 player.className="player";
 game.appendChild(player);
+const scoreEl=document.getElementById("score");
 
 function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
 function updatePlayer(){
-  player.style.left = x + "px";
-  player.style.bottom = y + "px";
-  player.style.height = stack*12 + "px"; // Stack sichtbar
-  speed = Math.max(1.5, 4 - stack*0.15);
+  player.style.left=x+"px";
+  player.style.bottom=y+"px";
+  player.style.height=(stack*12)+"px";
+  speed = Math.max(2, 2 + score/100);
 }
 
 // --- Input ---
-let keys = {};
-window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+let keys={};
+window.addEventListener("keydown", e=>keys[e.key.toLowerCase()]=true);
+window.addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
 
-let pointerX = null;
-window.addEventListener("pointermove", e => { pointerX = e.clientX; });
+let pointerX=null;
+window.addEventListener("pointermove", e=>{ pointerX=e.clientX; });
 
-// --- Items ---
+// --- Spawn Items & Obstacles ---
 function spawnItem(){
-  const item = document.createElement("div");
-  const good = Math.random() > 0.35;
+  if(!running) return;
+  const item=document.createElement("div");
+  const good=Math.random()>0.35;
   item.className="item "+(good?"good":"bad");
   item.dataset.value = good?1:-2;
   item.style.left = Math.random()*(W()-30)+"px";
-  item.style.top = "-40px";
+  item.style.top="-40px";
   game.appendChild(item);
 
   let iy=-40;
   const fall=setInterval(()=>{
     if(!running)return;
-    iy += speed;
-    item.style.top = iy+"px";
+    iy+=speed;
+    item.style.top=iy+"px";
+
     const r=item.getBoundingClientRect();
     const p=player.getBoundingClientRect();
     if(r.bottom>p.top && r.left<p.right && r.right>p.left){
-      stack += Number(item.dataset.value);
+      stack+=Number(item.dataset.value);
+      score += good ? 1 : 0;
       item.remove(); clearInterval(fall);
       if(stack<=0) fail();
       updatePlayer();
+      scoreEl.innerText="Score: "+score;
     }
-    if(iy>H()){item.remove(); clearInterval(fall);}
+    if(iy>H()){ item.remove(); clearInterval(fall);}
+  },16);
+}
+
+function spawnObstacle(){
+  if(!running) return;
+  const obs=document.createElement("div");
+  obs.className="obstacle";
+  obs.style.left=Math.random()*(W()-40)+"px";
+  obs.style.top="-40px";
+  game.appendChild(obs);
+
+  let iy=-40;
+  const fall=setInterval(()=>{
+    if(!running)return;
+    iy+=speed;
+    obs.style.top=iy+"px";
+
+    const r=obs.getBoundingClientRect();
+    const p=player.getBoundingClientRect();
+    if(r.bottom>p.top && r.left<p.right && r.right>p.left){
+      fail();
+      obs.remove(); clearInterval(fall);
+    }
+    if(iy>H()){ obs.remove(); clearInterval(fall);}
   },16);
 }
 
@@ -103,9 +142,11 @@ function fail(){
 function restart(){
   stack=3;
   x=W()/2; y=H()/5;
+  score=0;
   running=true;
   player.style.background="#00ff88";
   updatePlayer();
+  scoreEl.innerText="Score: "+score;
 }
 
 // --- Game Loop ---
@@ -113,17 +154,17 @@ function gameLoop(){
   if(!running){ requestAnimationFrame(gameLoop); return; }
 
   // --- Auto-run ---
-  y += 1.2;  // Vorwärtsbewegung
-  if(y>H()/1.5) y=H()/5; // Reset damit Spieler sichtbar bleibt
+  y += 1.2; 
+  if(y>H()/1.5) y=H()/5;
 
   // --- Keyboard ---
-  if(keys['a']||keys['arrowleft']) x -= 5;
-  if(keys['d']||keys['arrowright']) x += 5;
+  if(keys['a']||keys['arrowleft']) x-=5;
+  if(keys['d']||keys['arrowright']) x+=5;
 
   // --- Pointer overrides ---
   if(pointerX!==null) x = clamp(pointerX-20,0,W()-40);
 
-  x = clamp(x,0,W()-40);
+  x=clamp(x,0,W()-40);
   updatePlayer();
 
   requestAnimationFrame(gameLoop);
@@ -131,8 +172,9 @@ function gameLoop(){
 
 // --- Start ---
 updatePlayer();
-setInterval(()=>running && spawnItem(),700);
 requestAnimationFrame(gameLoop);
+setInterval(()=>spawnItem(),700);
+setInterval(()=>spawnObstacle(),1500);
 </script>
 </body>
 </html>
