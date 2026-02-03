@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Stack Rush – Guaranteed Control</title>
+
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(#1a1a1a, #000);
+  }
+
+  .player {
+    position: absolute;
+    bottom: 20%;
+    width: 40px;
+    background: #00ff88;
+    border-radius: 10px;
+  }
+
+  .item {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+
+  .good { background: #00ff88; }
+  .bad  { background: #ff3355; }
+</style>
+</head>
+
+<body>
+<div id="game"></div>
+
+<script>
+const game = document.getElementById("game");
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+let stack = 3;
+let speed = 3;
+let x = W() / 2;
+let running = true;
+
+/* PLAYER */
+const player = document.createElement("div");
+player.className = "player";
+game.appendChild(player);
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function updatePlayer() {
+  player.style.height = stack * 18 + "px";
+  player.style.left = x + "px";
+  speed = Math.max(1.5, 4 - stack * 0.15);
+}
+
+/* === ABSOLUTE FOLLOW CONTROL (BULLETPROOF) === */
+window.addEventListener("pointermove", e => {
+  x = clamp(e.clientX - 20, 0, W() - 40);
+});
+
+/* ITEMS */
+function spawnItem() {
+  const item = document.createElement("div");
+  const good = Math.random() > 0.35;
+
+  item.className = "item " + (good ? "good" : "bad");
+  item.dataset.value = good ? 1 : -2;
+
+  item.style.left = Math.random() * (W() - 30) + "px";
+  item.style.top = "-40px";
+  game.appendChild(item);
+
+  let y = -40;
+  const fall = setInterval(() => {
+    if (!running) return;
+
+    y += speed;
+    item.style.top = y + "px";
+
+    const r = item.getBoundingClientRect();
+    const p = player.getBoundingClientRect();
+
+    if (r.bottom > p.top && r.left < p.right && r.right > p.left) {
+      stack += Number(item.dataset.value);
+      item.remove();
+      clearInterval(fall);
+
+      if (stack <= 0) fail();
+      updatePlayer();
+    }
+
+    if (y > H()) {
+      item.remove();
+      clearInterval(fall);
+    }
+  }, 16);
+}
+
+/* GAME STATE */
+function fail() {
+  running = false;
+  player.style.background = "#ff3355";
+  setTimeout(restart, 800);
+}
+
+function restart() {
+  stack = 3;
+  x = W() / 2;
+  running = true;
+  player.style.background = "#00ff88";
+  updatePlayer();
+}
+
+/* START */
+updatePlayer();
+setInterval(() => running && spawnItem(), 700);
+</script>
+</body>
+</html>
