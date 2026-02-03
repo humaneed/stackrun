@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Stack Rush – Guaranteed Control</title>
+<title>Stack Rush – WASD Control</title>
 
 <style>
   html, body {
@@ -69,10 +69,25 @@ function updatePlayer() {
   speed = Math.max(1.5, 4 - stack * 0.15);
 }
 
-/* === ABSOLUTE FOLLOW CONTROL (BULLETPROOF) === */
+/* === ABSOLUTE FOLLOW CONTROL (POINTER) === */
 window.addEventListener("pointermove", e => {
   x = clamp(e.clientX - 20, 0, W() - 40);
 });
+
+/* === KEYBOARD CONTROL (WASD / Arrows) === */
+const keys = {};
+window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function handleKeyboard() {
+  if (!running) return;
+
+  let moveAmount = 5; // Geschwindigkeit bei Tastendruck
+  if (keys['a'] || keys['arrowleft']) x -= moveAmount;
+  if (keys['d'] || keys['arrowright']) x += moveAmount;
+
+  x = clamp(x, 0, W() - 40);
+}
 
 /* ITEMS */
 function spawnItem() {
@@ -130,6 +145,7 @@ function restart() {
 /* START */
 updatePlayer();
 setInterval(() => running && spawnItem(), 700);
+setInterval(handleKeyboard, 16); // Keyboard Loop
 </script>
 </body>
 </html>
